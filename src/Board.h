@@ -1,84 +1,40 @@
 //
-// Created by stef on 11/13/2023.
+// Created by Stef on 13/11/2023.
 //
 
-#include "Arduino.h";
+#include <Arduino.h>
 
 #ifndef ARDUINOTICTACTOEWIFI_BOARD_H
 #define ARDUINOTICTACTOEWIFI_BOARD_H
 
+
+
 class Board {
 
 private:
+    typedef byte (&led_frame)[8][12];
+
     int playerMoves[3][3];
+
 
 public:
     byte frame[8][12];
 
-    void setPlayerMove(int x, int y, int move) {
-        playerMoves[y][x] = move;
-    }
+    void setPlayerMove(int x, int y, int move);
 
-    int getPlayerMove(int x, int y) {
-        return this->playerMoves[y][x];
-    }
+    int getPlayerMove(int x, int y);
 
-    void setPixel(int x, int y, byte on) {
-        y = 7 - y;
-        this->frame[y][x] = on;
-    }
+    void setPixel(int x, int y, byte on);
 
-    void turnPixelOn(int x, int y) {
-        this->setPixel(x, y, 1);
-    }
+    void turnPixelOn(int x, int y);
 
-    void turnPixelOff(int x, int y) {
-        this->setPixel(x, y, 0);
-    }
+    void turnPixelOff(int x, int y);
 
-    void clearFrame() {
-        for (int x = 0; x < 12; x++) {
-            for (int y = 0; y < 8; y++) {
-                turnPixelOff(x, y);
-            }
-        }
-    }
+    void clearFrame();
 
-    void drawTicTacToe() {
-        this->clearFrame();
+    void drawTicTacToe();
 
-        int drawX = 5;
-
-        for (int x = 0; x < 3; x++) {
-
-            int drawY = 7;
-            for (int y = 0; y < 3; y++) {
-                int playerMove = playerMoves[x][y];
-
-                drawPlayerMove(drawX, drawY, playerMove);
-
-                drawY -= 3;
-            }
-            drawX += 3;
-        }
-
-    }
-
-    void drawPlayerMove(int x, int y, int move) {
-        switch (move) {
-            case 1:
-                this->turnPixelOn(x, y);
-                this->turnPixelOff(x - 1, y);
-                this->turnPixelOff(x, y - 1);
-                this->turnPixelOn(x - 1, y - 1);
-                break;
-            case 2:
-                this->turnPixelOn(x, y);
-                this->turnPixelOn(x - 1, y);
-                this->turnPixelOn(x, y - 1);
-                this->turnPixelOn(x - 1, y - 1);
-        }
-    }
+    void drawPlayerMove(int x, int y, int move);
 };
 
 

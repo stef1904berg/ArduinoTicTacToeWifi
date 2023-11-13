@@ -1,18 +1,14 @@
 #include <Arduino.h>
 #include <Arduino_LED_Matrix.h>
-#include "Board.h"
+#include <Board.h>
 
 ArduinoLEDMatrix matrix;
 Board board;
 
 void setup() {
-    matrix.begin();
+//    Serial.begin(115200);
 
-    board.setPlayerMove(0, 0, 1);
-    board.setPlayerMove(1, 0, 2);
-    board.setPlayerMove(2, 0, 2);
-    board.setPlayerMove(1, 1, 1);
-    board.setPlayerMove(2, 2, 1);
+    matrix.begin();
 
     board.drawTicTacToe();
 
@@ -22,4 +18,13 @@ void setup() {
 
 void loop() {
 
+    for (int x = 0; x < 3; ++x) {
+        for (int y = 0; y < 3; ++y) {
+            board.setPlayerMove(x, y, random(0,3));
+        }
+    }
+
+    board.drawTicTacToe();
+    matrix.renderBitmap(board.frame, 8, 12);
+    delay(100);
 }
