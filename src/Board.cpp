@@ -74,3 +74,11 @@ void Board::drawPlayerMove(int x, int y, int move) {
             break;
     }
 }
+
+void Board::loadFrame(byte newFrame[8][12]) {
+    for (int x = 0; x < 12; ++x) {
+        for (int y = 0; y < 8; ++y) {
+            this->setPixel(x, y, newFrame[7 - y][x]);
+        }
+    }
+}
