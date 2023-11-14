@@ -4,9 +4,12 @@
 #include <BoardScreens.h>
 #include <WiFiS3.h>
 #include <ArduinoMqttClient.h>
+#include <secrets.h>
 
 const int ACCEPT_BUTTON_PIN = 7;
 const int MOVE_OPTION_BUTTON_PIN = 6;
+
+const String topicPrefix = "stefvandenberg";
 
 ArduinoLEDMatrix matrix;
 Board board;
@@ -24,8 +27,6 @@ MqttClient mqtt(wifiClient);
 // 20: setup game joining
 int gameState = 0;
 int hostGame = 0;
-
-String MQTT_ADDRESS;
 
 // Button variables;
 int acceptButtonState;
@@ -45,6 +46,8 @@ void setup() {
 
     matrix.begin();
 
+    mqtt.setUsernamePassword(MQTT_USERNAME, MQTT_PASSWORD);
+
     if (WiFi.status() == WL_NO_MODULE) {
         Serial.println("Communication with WiFi module failed!");
         board.loadFrame(NO_WIFI_SCREEN);
@@ -61,7 +64,7 @@ void loop() {
     }
 
     if (gameState == 0) {
-        int status = WiFi.begin("IoTatelierF2144", "IoTatelier");
+        int status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
         // Wait until
         if (status == WL_CONNECTED) {
@@ -76,7 +79,6 @@ void loop() {
         board.loadFrame(WIFI_CONNECTED_SCREEN);
         matrix.renderBitmap(board.frame, 8, 12);
 
-        MQTT_ADDRESS = WiFi.gatewayIP().toString();
         Serial.println(MQTT_ADDRESS);
         Serial.println(WiFi.localIP());
         gameState = 1;
@@ -84,13 +86,13 @@ void loop() {
 
     if (gameState == 1) {
 
-        if (!mqtt.connect(MQTT_ADDRESS.c_str())) {
+        if (!mqtt.connect(MQTT_ADDRESS)) {
             Serial.print("MQTT connection failed! Error code = ");
             Serial.println(mqtt.connectError());
             while (true);
         }
 
-        mqtt.beginMessage("stefvandenberg/device/" + WiFi.localIP().toString() + "/status");
+        mqtt.beginMessage(topicPrefix + "/device/" + WiFi.localIP().toString() + "/status");
         mqtt.print("connected");
         mqtt.endMessage();
 
@@ -110,7 +112,7 @@ void loop() {
         }
 
         if (acceptButtonState == LOW && lastAcceptButtonState == HIGH) {
-            mqtt.beginMessage("stefvandenberg/device/" + WiFi.localIP().toString() + "/status");
+            mqtt.beginMessage(topicPrefix + "/device/" + WiFi.localIP().toString() + "/status");
             if (hostGame) {
                 mqtt.print("hosting");
                 gameState = 10;
