@@ -9,7 +9,7 @@
 const int ACCEPT_BUTTON_PIN = 7;
 const int MOVE_OPTION_BUTTON_PIN = 6;
 
-const String topicPrefix = "stefvandenberg";
+const String topicPrefix = MQTT_TOPIC_PREFIX;
 
 ArduinoLEDMatrix matrix;
 Board board;
@@ -79,7 +79,6 @@ void loop() {
         board.loadFrame(WIFI_CONNECTED_SCREEN);
         matrix.renderBitmap(board.frame, 8, 12);
 
-        Serial.println(MQTT_ADDRESS);
         Serial.println(WiFi.localIP());
         gameState = 1;
     }
