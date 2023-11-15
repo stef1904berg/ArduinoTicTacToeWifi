@@ -21,10 +21,11 @@ MqttClient mqtt(wifiClient);
 // 1: connecting to MQTT Server
 // 2: user host or join decision
 
+// 10: setup game hosting + listen for handshake request
+// 11: send handshake response
 
-// 10: setup game hosting
-
-// 20: setup game joining
+// 20: listening for open rooms + send handshake request
+// 21: listen for handshake response
 int gameState = 0;
 int hostGame = 0;
 
@@ -34,11 +35,26 @@ int moveButtonState;
 int lastAcceptButtonState = LOW;
 int lastMoveButtonState = LOW;
 
+// Timers
+unsigned long previousMillis = 0;
+const long broadcastHostInterval = 1000;
+
+String clientIdentifier;
 
 void updateButtonStates();
+void publishMessage(const String& message, const String& topic);
+String randomString(int length);
 
 void setup() {
     Serial.begin(115200);
+
+    // Set random seed (not good, but it's better than nothing
+    int rSeed = analogRead(0) + (analogRead(0) * 1000) + (analogRead(0) * 1000000);
+    randomSeed(rSeed);
+
+    clientIdentifier = randomString(10);
+    Serial.print("Client identifier: ");
+    Serial.println(clientIdentifier);
 
     // Setup input buttons
     pinMode(ACCEPT_BUTTON_PIN, INPUT_PULLUP); // Accept button
@@ -79,6 +95,7 @@ void loop() {
         board.loadFrame(WIFI_CONNECTED_SCREEN);
         matrix.renderBitmap(board.frame, 8, 12);
 
+        Serial.print("Client IP address: ");
         Serial.println(WiFi.localIP());
         gameState = 1;
     }
@@ -91,10 +108,7 @@ void loop() {
             while (true);
         }
 
-        mqtt.beginMessage(topicPrefix + "/device/" + WiFi.localIP().toString() + "/status");
-        mqtt.print("connected");
-        mqtt.endMessage();
-
+        publishMessage("connected", "device/" + WiFi.localIP().toString() + "/status");
         gameState = 2;
     }
 
@@ -111,12 +125,11 @@ void loop() {
         }
 
         if (acceptButtonState == LOW && lastAcceptButtonState == HIGH) {
-            mqtt.beginMessage(topicPrefix + "/device/" + WiFi.localIP().toString() + "/status");
             if (hostGame) {
-                mqtt.print("hosting");
+                publishMessage("hosting", "device/" + WiFi.localIP().toString() + "/status");
                 gameState = 10;
             } else {
-                mqtt.print("joining");
+                publishMessage("joining", "device/" + WiFi.localIP().toString() + "/status");
                 gameState = 20;
             }
             mqtt.endMessage();
@@ -125,9 +138,18 @@ void loop() {
     }
 
     if (gameState == 10) {
-//        mqtt.
-    }
+        unsigned long currentMillis = millis();
 
+        if (currentMillis - previousMillis >= broadcastHostInterval) {
+            previousMillis = currentMillis;
+
+            publishMessage("open", "rooms/" + clientIdentifier + "/status");
+
+            board.loadFrame(WIFI_CONNECTED_SCREEN);
+        } else {
+            board.clearFrame();
+        }
+    }
 
     lastAcceptButtonState = acceptButtonState;
     lastMoveButtonState = moveButtonState;
@@ -138,4 +160,19 @@ void loop() {
 void updateButtonStates() {
     acceptButtonState = digitalRead(7);
     moveButtonState = digitalRead(6);
+}
+
+void publishMessage(const String& message, const String& topic) {
+    mqtt.beginMessage(topicPrefix + "/" + topic);
+    mqtt.print(message);
+    mqtt.endMessage();
+}
+
+String randomString(int length) {
+    const char possible[] = "abcdefghijklmnopqrstuvwxyz";
+    char rString[length];
+    for (int i = 0; i < length; ++i) {
+        rString[i] = possible[random(0, 26)];
+    }
+    return rString;
 }
