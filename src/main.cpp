@@ -235,9 +235,6 @@ void loop() {
                 iterations++;
                 if (iterations > 7) { break; }
             }
-            if (board.getPlayerMove(movePosY, movePosX) == 0 || board.getPlayerMove(movePosY, movePosX) == 3) {
-                board.setPlayerMove(movePosY, movePosX, 3);
-            }
 
             String boardData = "";
             for (int x = 0; x < 3; ++x) {
@@ -245,6 +242,7 @@ void loop() {
                     boardData += board.getPlayerMove(x, y);
                 }
             }
+            boardData.replace('3', '0');
 
             if (hostGame) {
                 publishMessage(boardData, "game/" + localId + clientId + "/board");
@@ -316,6 +314,7 @@ void onMqttMessage(int messageSize) {
             publishMessage("accept", "rooms/" + roomId + "/" + message);
             mqtt.subscribe(topicPrefix + "/game/" + localId + clientId + "/board");
             mqtt.subscribe(topicPrefix + "/game/" + localId + clientId + "/status");
+            mqtt.unsubscribe(topicPrefix + "/rooms/" + localId + "/handshake");
             handshakeSent = true;
 
             gameState = 11;
@@ -325,6 +324,8 @@ void onMqttMessage(int messageSize) {
             hostId = roomId;
             mqtt.subscribe(topicPrefix + "/game/" + hostId + localId + "/board");
             mqtt.subscribe(topicPrefix + "/game/" + hostId + localId + "/status");
+            mqtt.unsubscribe(topicPrefix + "/rooms/+/status");
+            mqtt.unsubscribe(topicPrefix + "/rooms/" + roomId + "/" + localId);
             gameState = 21;
         }
     }
