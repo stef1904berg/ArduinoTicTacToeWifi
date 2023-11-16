@@ -33,18 +33,16 @@ void Board::clearFrame() {
     }
 }
 
-void Board::drawTicTacToe() {
-    this->clearFrame();
+void Board::drawTicTacToe(bool clear) {
+    if (clear) { this->clearFrame(); }
 
     int drawX = 4;
-
     for (int x = 0; x < 3; x++) {
 
         int drawY = 7;
         for (int y = 0; y < 3; y++) {
-            int playerMove = this->playerMoves[x][y];
 
-            this->drawPlayerMove(drawX, drawY, playerMove);
+            this->drawPlayerMove(drawX, drawY, this->playerMoves[x][y]);
 
             drawY -= 3;
         }
@@ -72,6 +70,11 @@ void Board::drawPlayerMove(int x, int y, int move) {
             this->turnPixelOn(x, y - 1);
             this->turnPixelOn(x + 1, y - 1);
             break;
+        case 3:
+            this->turnPixelOff(x, y);
+            this->turnPixelOff(x + 1, y);
+            this->turnPixelOn(x, y - 1);
+            this->turnPixelOff(x + 1, y - 1);
     }
 }
 

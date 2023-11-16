@@ -32,7 +32,7 @@ public:
 
     void clearFrame();
 
-    void drawTicTacToe();
+    void drawTicTacToe(bool clear = true);
 
     void drawPlayerMove(int x, int y, int move);
 
