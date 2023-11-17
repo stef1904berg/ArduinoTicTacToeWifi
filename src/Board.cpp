@@ -85,3 +85,21 @@ void Board::loadFrame(byte newFrame[8][12]) {
         }
     }
 }
+
+bool Board::checkTicTacToeWin(int player) {
+    // Check vertical wins
+    for (int y = 0; y < 3; ++y) {
+        if (this->playerMoves[y][0] == player && this->playerMoves[y][1] == player && this->playerMoves[y][2] == player) { return true; }
+    }
+
+    // Check horizontal wins
+    for (int x = 0; x < 3; ++x) {
+        if (this->playerMoves[0][x] == player && this->playerMoves[1][x] == player && this->playerMoves[2][x] == player) { return true; }
+    }
+
+    // Check 2 horizontal wins
+    if (this->playerMoves[0][0] == player && this->playerMoves[1][1] == player && this->playerMoves[2][2] == player) { return true; }
+    if (this->playerMoves[0][2] == player && this->playerMoves[1][1] == player && this->playerMoves[2][0] == player) { return true; }
+
+    return false;
+}

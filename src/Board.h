@@ -37,6 +37,8 @@ public:
     void drawPlayerMove(int x, int y, int move);
 
     void loadFrame(byte newFrame[8][12]);
+
+    bool checkTicTacToeWin(int player);
 };
 
 
