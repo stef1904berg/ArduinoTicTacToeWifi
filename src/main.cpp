@@ -26,12 +26,16 @@ MqttClient mqtt(wifiClient);
 // 11: finished handshakes
 // 12: waiting for move
 // 13: playing move
+// 14: won game
+// 15: lost game
 
 // Client
 // 20: listening for open rooms + send handshake request
 // 21: finished handshakes
 // 22: waiting for move
 // 23: playing move
+// 24: won game
+// 25: lost game
 int gameState = 0;
 bool hostGame = false;
 int movePosX = 0;
@@ -71,7 +75,7 @@ void nextMovePosition();
 void setup() {
     Serial.begin(115200);
 
-    // Set random seed (not good, but it's better than nothing
+    // Set random seed (not good, but it's better than nothing)
     int rSeed = analogRead(0) + (analogRead(0) * 1000) + (analogRead(0) * 1000000);
     randomSeed(rSeed);
 
@@ -132,11 +136,7 @@ void loop() {
         Serial.println("Connected to MQTT server");
         publishMessage("connected", "device/" + localId + "/status");
 
-        mqtt.subscribe(topicPrefix + "/game/testing/board");
-
         gameState = 2;
-//        gameState = 23;
-//        hostGame = true;
     }
 
     // User host of join decision
@@ -153,11 +153,11 @@ void loop() {
 
         if (acceptButtonState == LOW && lastAcceptButtonState == HIGH) {
             if (hostGame) {
-                publishMessage("hosting", "device/" + localId + "/status");
+                publishMessage("hosting", "device/" + localId + "/status"); // no use for this yet
                 mqtt.subscribe(topicPrefix + "/rooms/" + localId + "/handshake");
                 gameState = 10;
             } else {
-                publishMessage("joining", "device/" + localId + "/status");
+                publishMessage("joining", "device/" + localId + "/status"); // no use for this yet
                 mqtt.subscribe(topicPrefix + "/rooms/+/status");
                 gameState = 20;
             }
@@ -183,17 +183,17 @@ void loop() {
     // Host: finished handshakes
     if (gameState == 11) {
         Serial.println("Host handshake complete");
-        publishMessage("connected", "game/" + localId + clientId + "/host");
+        publishMessage("connected", "games/" + localId + clientId + "/host");
 
         bool hostFirstMove = random(0, 2);
-        publishMessage(hostFirstMove ? "hostmove" : "clientmove", "game/" + localId + clientId + "/status");
+        publishMessage(hostFirstMove ? "hostmove" : "clientmove", "games/" + localId + clientId + "/status");
         gameState = 12;
     }
 
     // Client: finished handshakes
     if (gameState == 21) {
         Serial.println("Client handshake complete");
-        publishMessage("connected", "game/" + hostId + localId + "/client");
+        publishMessage("connected", "games/" + hostId + localId + "/client");
         gameState = 22;
 
     }
@@ -210,6 +210,10 @@ void loop() {
 
     // playing host/client move
     if (gameState == 13 || gameState == 23) {
+        if (board.getPlayerMove(movePosY, movePosX) == 0) {
+            board.setPlayerMove(movePosY, movePosX, 3);
+        }
+
         if (moveButtonState == LOW && lastMoveButtonState == HIGH) {
 
             if (board.getPlayerMove(movePosY, movePosX) == 3 || board.getPlayerMove(movePosY, movePosX) == 0) {
@@ -244,18 +248,36 @@ void loop() {
             }
             boardData.replace('3', '0');
 
+            String roomId;
             if (hostGame) {
-                publishMessage(boardData, "game/" + localId + clientId + "/board");
-                publishMessage("clientmove", "game/" + localId + clientId + "/status");
+                roomId = localId + clientId;
             } else {
-                publishMessage(boardData, "game/" + hostId + localId + "/board");
-                publishMessage("hostmove", "game/" + hostId + localId + "/status");
+                roomId = hostId + localId;
             }
+            publishMessage(boardData, "games/" + roomId + "/board");
+            publishMessage(hostGame ? "hostmove" : "clientmove", "games/" + roomId + "/status");
 
-            gameState = hostGame ? 22 : 12;
+            if (board.checkTicTacToeWin(hostGame ? 2 : 1)) {
+                publishMessage(hostGame ? "hostwin" : "clientwin", "games/" + roomId + "/status");
+                Serial.print(hostGame ? "Host" : "Client");
+                Serial.println(" has won the game");
+                gameState = hostGame ? 24 : 14;
+            } else {
+                gameState = hostGame ? 22 : 12;
+            }
         }
 
         board.drawTicTacToe(false);
+    }
+
+    // Show win screen
+    if (gameState == 14 || gameState == 24) {
+        board.loadFrame(WIN_SCREEN);
+    }
+
+    // Show lose screen
+    if (gameState == 15 || gameState == 25) {
+        board.loadFrame(LOSE_SCREEN);
     }
 
     lastAcceptButtonState = acceptButtonState;
@@ -292,7 +314,6 @@ void onMqttMessage(int messageSize) {
         message += (char) mqtt.read();
     }
 
-    Serial.println(messageTopic + ": " + message);
     String firstPart = getValue(messageTopic, '/', 1);
     if (firstPart == "rooms") {
         String roomId = getValue(messageTopic, '/', 2);
@@ -301,7 +322,7 @@ void onMqttMessage(int messageSize) {
         if (secondPart == "status" && message == "open") {
             // Client
             // Respond to open room message
-            // rooms/<room>/handshake = client id
+            // rooms/<room>/handshake = localId
             publishMessage(localId, "rooms/" + roomId + "/handshake");
             mqtt.subscribe(topicPrefix + "/rooms/" + roomId + "/" + localId);
 
@@ -310,11 +331,10 @@ void onMqttMessage(int messageSize) {
             // Response to client room handshake request
             // rooms/<room>/<client id> = accept
             clientId = message;
-
-            publishMessage("accept", "rooms/" + roomId + "/" + message);
-            mqtt.subscribe(topicPrefix + "/game/" + localId + clientId + "/board");
-            mqtt.subscribe(topicPrefix + "/game/" + localId + clientId + "/status");
             mqtt.unsubscribe(topicPrefix + "/rooms/" + localId + "/handshake");
+            publishMessage("accept", "rooms/" + roomId + "/" + message);
+            mqtt.subscribe(topicPrefix + "/games/" + localId + clientId + "/board");
+            mqtt.subscribe(topicPrefix + "/games/" + localId + clientId + "/status");
             handshakeSent = true;
 
             gameState = 11;
@@ -322,15 +342,16 @@ void onMqttMessage(int messageSize) {
             // Client
             // Handle handshake accept message
             hostId = roomId;
-            mqtt.subscribe(topicPrefix + "/game/" + hostId + localId + "/board");
-            mqtt.subscribe(topicPrefix + "/game/" + hostId + localId + "/status");
             mqtt.unsubscribe(topicPrefix + "/rooms/+/status");
             mqtt.unsubscribe(topicPrefix + "/rooms/" + roomId + "/" + localId);
+            mqtt.subscribe(topicPrefix + "/games/" + hostId + localId + "/board");
+            mqtt.subscribe(topicPrefix + "/games/" + hostId + localId + "/status");
+
             gameState = 21;
         }
     }
 
-    if (firstPart == "game") {
+    if (firstPart == "games") {
         String gameId = getValue(messageTopic, '/', 2);
         String secondPart = getValue(messageTopic, '/', 3);
 
@@ -360,6 +381,22 @@ void onMqttMessage(int messageSize) {
             // Set client to moving
             if (message == "clientmove" && !hostGame) {
                 gameState = 23;
+            }
+
+            if (message == "clientwin") {
+                if (hostGame) {
+                    gameState = 25;
+                } else {
+                    gameState = 24;
+                }
+            }
+
+            if (message == "hostwin") {
+                if (hostGame) {
+                    gameState = 24;
+                } else {
+                    gameState = 25;
+                }
             }
 
         }
