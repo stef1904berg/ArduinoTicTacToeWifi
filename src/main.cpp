@@ -255,7 +255,7 @@ void loop() {
                 roomId = hostId + localId;
             }
             publishMessage(boardData, "games/" + roomId + "/board");
-            publishMessage(hostGame ? "hostmove" : "clientmove", "games/" + roomId + "/status");
+            publishMessage(hostGame ? "clientmove" : "hostmove", "games/" + roomId + "/status");
 
             if (board.checkTicTacToeWin(hostGame ? 2 : 1)) {
                 publishMessage(hostGame ? "hostwin" : "clientwin", "games/" + roomId + "/status");
