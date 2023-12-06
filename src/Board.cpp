@@ -103,3 +103,16 @@ bool Board::checkTicTacToeWin(int player) {
 
     return false;
 }
+
+bool Board::checkTicTacToeDraw() {
+    int playerMoves = 0;
+
+    for (int x = 0; x < 3; ++x) {
+        for (int y = 0; y < 3; ++y) {
+            int playerMove = this->playerMoves[x][y];
+            if (playerMove == 1 || playerMove == 2) { playerMoves++; }
+        }
+    }
+
+    return playerMoves >= 9;
+}

@@ -36,6 +36,8 @@ MqttClient mqtt(wifiClient);
 // 23: playing move
 // 24: won game
 // 25: lost game
+
+// 30: draw
 int gameState = 0;
 bool hostGame = false;
 int movePosX = 0;
@@ -102,7 +104,6 @@ void setup() {
 
 void loop() {
     updateButtonStates();
-
     mqtt.poll();
 
     // Startup, connecting to internet
@@ -186,6 +187,8 @@ void loop() {
         publishMessage("connected", "games/" + localId + clientId + "/host");
 
         bool hostFirstMove = random(0, 2);
+
+        delay(2000); // wait 2 seconds so the client can always receiver this message
         publishMessage(hostFirstMove ? "hostmove" : "clientmove", "games/" + localId + clientId + "/status");
         gameState = 12;
     }
@@ -214,6 +217,16 @@ void loop() {
             board.setPlayerMove(movePosY, movePosX, 3);
         }
 
+        if (board.getPlayerMove(movePosY, movePosX) == 1 || board.getPlayerMove(movePosY, movePosX) == 2) {
+            nextMovePosition();
+            int iterations = 0;
+            while (board.getPlayerMove(movePosY, movePosX) == 1 || board.getPlayerMove(movePosY, movePosX) == 2) {
+                nextMovePosition();
+                iterations++;
+                if (iterations > 7) { break; }
+            }
+        }
+
         if (moveButtonState == LOW && lastMoveButtonState == HIGH) {
 
             if (board.getPlayerMove(movePosY, movePosX) == 3 || board.getPlayerMove(movePosY, movePosX) == 0) {
@@ -234,10 +247,11 @@ void loop() {
 
             nextMovePosition();
             int iterations = 0;
+            bool checkForDraw;
             while (board.getPlayerMove(movePosY, movePosX) == 1 || board.getPlayerMove(movePosY, movePosX) == 2) {
                 nextMovePosition();
                 iterations++;
-                if (iterations > 7) { break; }
+                if (iterations > 7) { checkForDraw = true; break; }
             }
 
             String boardData = "";
@@ -263,7 +277,13 @@ void loop() {
                 Serial.println(" has won the game");
                 gameState = hostGame ? 24 : 14;
             } else {
-                gameState = hostGame ? 22 : 12;
+                if (checkForDraw && board.checkTicTacToeDraw()) {
+                    publishMessage("draw", "games/" + roomId + "/status");
+                    gameState = 30;
+                } else {
+                    gameState = hostGame ? 22 : 12;
+                }
+
             }
         }
 
@@ -278,6 +298,10 @@ void loop() {
     // Show lose screen
     if (gameState == 15 || gameState == 25) {
         board.loadFrame(LOSE_SCREEN);
+    }
+
+    if (gameState == 30) {
+        board.loadFrame(DRAW_SCREEN);
     }
 
     lastAcceptButtonState = acceptButtonState;
@@ -399,6 +423,8 @@ void onMqttMessage(int messageSize) {
                 }
             }
 
+            if (message == "draw")
+                gameState = 30;
         }
     }
 }
